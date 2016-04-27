@@ -6,11 +6,11 @@ module EmberRailsModels
         require rb_file
       end
 
-      # gather and construct the schemas from the ActiveModelSeraliazer schemas
+      # gather and construct the schemas from the ActiveModelSerializer schemas
       serializer_classes.map do |serializer_class|
         schema = self.new serializer_class
 
-        # only create a model for serializers with an underlying mongoid model
+        # only create a model for serializers with an underlying model
         begin
           schema.model_class
         rescue NameError => e
@@ -25,17 +25,13 @@ module EmberRailsModels
       @serializer_class = serializer_class
     end
 
-    def model_name
-      model_class.to_s
-    end
-
     def attributes
       attrs = []
       unless serializer_attributes.blank?
         attrs += serializer_attributes.reject{|attr| attr == :id}.map do |attr_name|
           {
               name: attr_name.to_s.camelize(:lower),
-              type: mongo_to_ember_attribute_type(mongoid_field_by_name(attr_name.to_s).type)
+              type: db_adapter.attribute_name_to_ember_type(attr_name)
           }.compact
         end
       end
@@ -44,7 +40,7 @@ module EmberRailsModels
         attrs += serializer_attribute_methods.map do |method_name, type|
           {
               name: method_name.to_s.camelize(:lower),
-              type: mongo_to_ember_attribute_type(type)
+              type: db_adapter.attribute_type_to_ember_type(type)
           }
         end
       end
@@ -66,6 +62,10 @@ module EmberRailsModels
         end
       end
     end
+
+   def model_name
+     model_class.to_s
+   end
 
     def model_class
       @serializer_class.to_s.gsub(/Serializer/, '').constantize
@@ -103,32 +103,15 @@ module EmberRailsModels
       end
     end
 
-    def mongoid_field_by_name(name)
-      db_attr = case name
-      when "id"
-        "_id"
-      else
-        name
-      end
-      model_class.fields[db_attr]
-    end
-
-    def mongoid_relation_by_name(name)
-      model_class.relations[name.to_s]
-    end
-
-    def mongo_to_ember_attribute_type(mongo_type)
-      # TODO: need some special case handling for some type mappings
-      mongo_type_str = mongo_type.to_s
-      case mongo_type_str
-      when "BSON::ObjectId"
-        "string"
-      when "Hash"
-        "object"
-      when "Float"
-        "number"
-      else
-        mongo_type_str.downcase.gsub(/^mongoid\:\:/, '')
+    def db_adapter
+      @adapter ||= begin
+        if model_class.ancestors.map(&:to_s).include? 'ActiveRecord::Base'
+          DbAdapters::ActiveRecordAttributeAdapter.new model_class
+        elsif model_class.included_modules.map(&:to_s).include? 'Mongoid::Document'
+          DbAdapters::MongoidAttributeAdapter.new model_class
+        else
+          raise "Unnown model type (neither ActiveRecord nor Mongoid::Document)"
+        end
       end
     end
   end
