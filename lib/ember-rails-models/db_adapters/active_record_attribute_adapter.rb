@@ -8,8 +8,8 @@ module EmberRailsModels::DbAdapters
 
     def attribute_type_to_ember_type(active_record_type)
       # TODO: need some special case handling for some type mappings
-      case active_record_type.to_s
-      when "jsonb"
+      case active_record_type.to_s.downcase
+      when "hash"
         "object"
       when "float"
         "number"
