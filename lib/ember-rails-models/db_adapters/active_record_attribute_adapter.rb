@@ -11,8 +11,10 @@ module EmberRailsModels::DbAdapters
       case active_record_type.to_s.downcase
       when "hash"
         "object"
-      when "float"
+      when "float", "integer"
         "number"
+      when "datetime"
+        "date"
       else
         active_record_type.to_s.downcase
       end
