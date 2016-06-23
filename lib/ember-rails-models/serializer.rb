@@ -19,6 +19,16 @@ module EmberRailsModels
       def get_attribute_methods
         @attribute_methods.nil? ? {} : @attribute_methods
       end
+
+      def asynchronous(*async_attrs)
+        async_attrs.each do |attr|
+          # add a dummy method that returns an empty array that ActiveModelSerializer will delegate to
+          # TODO: need to return nil for a has_one relationship?
+          self.send :define_method, attr do
+            []
+          end
+        end
+      end
     end
   end
 end
