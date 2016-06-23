@@ -2,6 +2,7 @@ module EmberRailsModels::DbAdapters
   class ActiveRecordAttributeAdapter < BaseAttributeAdapter
     def attribute_name_to_ember_type(attribute_name)
       column = model_class.columns.find {|col| col.name == attribute_name.to_s}
+      raise "Unable to find column named '#{attribute_name}' for '#{model_class.to_s}'" if column.nil?
 
       attribute_type_to_ember_type(column.type)
     end
