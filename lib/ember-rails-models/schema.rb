@@ -48,19 +48,36 @@ module EmberRailsModels
     end
 
     def associations
-      serializer_associations.map do |name, assoc|
+      result = serializer_associations.map do |name, assoc|
         {
             name: name.to_s.camelize(:lower),
             references: name.to_s.singularize.camelize(:lower),
             type: serializer_to_ember_relation_type(assoc),
         }.tap do |hash|
+          properties = {}
           if assoc.polymorphic?
-            hash[:properties] = {
-                polymorphic: true
-            }
+            properties[:polymorphic] = true
           end
+          if assoc.options[:async]
+            properties[:async] = true
+          end
+          hash[:properties] = properties unless properties.empty?
         end
       end
+
+      if serializer_async_has_ones.present?
+        result = [] if result.nil?
+        result += serializer_async_has_ones.map do |name|
+          {
+            name: name.to_s.camelize(:lower),
+            references: name.to_s.singularize.camelize(:lower),
+            type: "belongsTo",
+            properties: { async: true}
+          }
+        end
+      end
+
+      result
     end
 
    def model_name
@@ -90,6 +107,10 @@ module EmberRailsModels
 
     def serializer_attribute_methods
       @serializer_class.get_attribute_methods
+    end
+
+    def serializer_async_has_ones
+      @serializer_class.instance_variable_get(:@async_has_ones)
     end
 
     def serializer_to_ember_relation_type(association)
